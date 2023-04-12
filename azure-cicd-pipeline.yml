@@ -16,7 +16,7 @@ variables:
   containerRegistry: 'flaskapp2234.azurecr.io'
   dockerfilePath: '**/Dockerfile'
   tag: '$(Build.BuildId)'
-  imagePullSecret: 'flaskapp2234729805ca-auth'
+  imagePullSecret: '########'
 
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
@@ -67,7 +67,7 @@ stages:
             --image flaskapp2234.azurecr.io/flaskwebappgit:$(Build.BuildId) \
             --registry-login-server flaskapp2234.azurecr.io \
             --registry-username FlaskApp2234 \
-            --registry-password cXfb+XTC0BVsK5QBOOHBSsKiSL9AlgU+oC6hfxB9Su+ACRBtXCeD \
+            --registry-password ###################\
             --dns-name-label flask-app \
             --ports 8000 \
             --cpu 1 \
@@ -85,7 +85,7 @@ stages:
           import requests 
           print("ooookkkk")
                         
-          url = "http://98.64.120.139:8000/liveness"
+          url = "http://containerRegistry:8000/liveness"
                         
           print(requests.get(url))
 

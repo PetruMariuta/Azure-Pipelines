@@ -1,0 +1,128 @@
+# Deploy to Azure Kubernetes Service
+# Build and push image to Azure Container Registry; Deploy to Azure Kubernetes Service
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- main
+
+resources:
+- repo: self
+
+variables:
+
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: 'd7c31591-e490-4476-a27d-ca8d38b0f850'
+  imageRepository: 'flaskwebappgit'
+  containerRegistry: 'flaskapp2234.azurecr.io'
+  dockerfilePath: '**/Dockerfile'
+  tag: '$(Build.BuildId)'
+  imagePullSecret: 'flaskapp2234729805ca-auth'
+
+  # Agent VM image name
+  vmImageName: 'ubuntu-latest'
+
+
+stages:
+- stage: Build
+  displayName: Build stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build and push an image to container registry
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
+####
+    - task: Docker@2
+      inputs:
+        containerRegistry: 'FlaskApp2234'
+        repository: 'Flask-Web-App.git'
+        #command: 'docker pull flaskapp2234.azurecr.io/flaskwebappgit:58'
+        #new lines below:
+        
+    - task: AzureCLI@2
+      displayName: 'Azure CLI - Create container instance'
+      inputs:
+        #azureSubscription: 'dockerRegistryServiceConnection'
+        connectedServiceNameARM: 'ResourceTest'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          # Log in to Azure Container Registry
+          #az acr login --name flaskapp2234
+
+          # Create the container instance
+          #az container create --resource-group myResourceGroup --name mycontainer --image mcr.microsoft.com/azuredocs/aci-helloworld --dns-name-label aci-demo --ports 8000
+          az container create \
+            --resource-group resource-test \
+            --name flask-container \
+            --image flaskapp2234.azurecr.io/flaskwebappgit:$(Build.BuildId) \
+            --registry-login-server flaskapp2234.azurecr.io \
+            --registry-username FlaskApp2234 \
+            --registry-password cXfb+XTC0BVsK5QBOOHBSsKiSL9AlgU+oC6hfxB9Su+ACRBtXCeD \
+            --dns-name-label flask-app \
+            --ports 8000 \
+            --cpu 1 \
+            --memory 1.5 \
+            --restart-policy Never
+
+#new lines:
+
+
+    - task: PythonScript@0
+        
+      inputs:
+        scriptSource: 'inline'
+        script: |
+          import requests 
+          print("ooookkkk")
+                        
+          url = "http://98.64.120.139:8000/liveness"
+                        
+          print(requests.get(url))
+
+###
+    - upload: manifests
+      artifact: manifests
+
+- stage: Deploy
+  displayName: Deploy stage
+  dependsOn: Build
+
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy
+    pool:
+      vmImage: $(vmImageName)
+    environment: 'FlaskWebAppgit-8187.default'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: KubernetesManifest@0
+            displayName: Create imagePullSecret
+            inputs:
+              action: createSecret
+              secretName: $(imagePullSecret)
+              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+
+          - task: KubernetesManifest@0
+            displayName: Deploy to Kubernetes cluster
+            inputs:
+              action: deploy
+              manifests: |
+                $(Pipeline.Workspace)/manifests/deployment.yml
+                $(Pipeline.Workspace)/manifests/service.yml
+              imagePullSecrets: |
+                $(imagePullSecret)
+              containers: |
+                $(containerRegistry)/$(imageRepository):$(tag)
+

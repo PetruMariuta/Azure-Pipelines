@@ -11,7 +11,7 @@ resources:
 variables:
 
   # Container registry service connection established during pipeline creation
-  dockerRegistryServiceConnection: 'd7c31591-e490-4476-a27d-ca8d38b0f850'
+  dockerRegistryServiceConnection: '###########################'
   imageRepository: 'flaskwebappgit'
   containerRegistry: 'flaskapp2234.azurecr.io'
   dockerfilePath: '**/Dockerfile'
